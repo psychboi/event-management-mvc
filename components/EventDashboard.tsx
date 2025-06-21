@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react"
 import type { Event } from "@/lib/models/Event"
-import { getEvents, deleteEvent, logoutAction } from "@/lib/actions"
+import { EventDatabase } from "@/lib/database" // Import EventDatabase directly
+import { logoutAction } from "@/lib/actions" // Keep logout as a Server Action
 import EventForm from "./EventForm"
 
 export default function EventDashboard() {
@@ -26,7 +27,8 @@ export default function EventDashboard() {
   async function loadEvents() {
     setLoading(true)
     try {
-      const eventsData = await getEvents()
+      // Fetch events directly from EventDatabase (which uses localStorage)
+      const eventsData = EventDatabase.getAll()
       setEvents(eventsData)
     } catch (error) {
       console.error("Error loading events:", error)
@@ -147,10 +149,11 @@ export default function EventDashboard() {
   async function handleDelete(id: string) {
     if (confirm("Are you sure you want to delete this event?")) {
       try {
-        await deleteEvent(id)
+        // Delete directly via EventDatabase
+        EventDatabase.delete(id)
         setMessage("Event deleted successfully!")
         setTimeout(() => setMessage(""), 3000)
-        loadEvents()
+        loadEvents() // Reload events from localStorage
       } catch (error) {
         setMessage("Error deleting event")
         setTimeout(() => setMessage(""), 3000)
@@ -166,7 +169,7 @@ export default function EventDashboard() {
   function handleFormClose() {
     setShowForm(false)
     setEditingEvent(null)
-    loadEvents()
+    loadEvents() // Reload events after form submission
   }
 
   async function handleLogout() {

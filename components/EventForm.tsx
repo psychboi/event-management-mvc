@@ -2,8 +2,8 @@
 
 import { useState } from "react"
 import type { Event } from "@/lib/models/Event"
-import { EVENT_CATEGORIES } from "@/lib/models/Event"
-import { createEvent, updateEvent } from "@/lib/actions"
+import { EVENT_CATEGORIES, EventModel } from "@/lib/models/Event" // Import EventModel for validation
+import { EventDatabase } from "@/lib/database" // Import EventDatabase directly
 
 interface EventFormProps {
   event?: Event | null
@@ -30,34 +30,34 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
       const maxAttendeesStr = formData.get("maxAttendees") as string
       const maxAttendees = maxAttendeesStr ? Number.parseInt(maxAttendeesStr) : undefined
 
-      // Client-side validation
-      const newErrors: Record<string, string> = {}
+      const eventData = { title, description, date, time, location, category, priority, maxAttendees }
 
-      if (!title?.trim()) newErrors.title = "Title is required"
-      if (title?.trim().length < 3) newErrors.title = "Title must be at least 3 characters long"
-      if (!description?.trim()) newErrors.description = "Description is required"
-      if (description?.trim().length < 10) newErrors.description = "Description must be at least 10 characters long"
-      if (!date) newErrors.date = "Date is required"
-      if (!time) newErrors.time = "Time is required"
-      if (!location?.trim()) newErrors.location = "Location is required"
-      if (!category) newErrors.category = "Category is required"
-      if (!priority) newErrors.priority = "Priority is required"
-      if (maxAttendees !== undefined && (maxAttendees < 1 || maxAttendees > 10000)) {
-        newErrors.maxAttendees = "Max attendees must be between 1 and 10,000"
-      }
-
-      if (Object.keys(newErrors).length > 0) {
+      // Client-side validation using EventModel
+      const newErrorsArray = EventModel.validate(eventData)
+      if (newErrorsArray.length > 0) {
+        const newErrors: Record<string, string> = {}
+        newErrorsArray.forEach((err) => {
+          if (err.includes("Title")) newErrors.title = err
+          else if (err.includes("Description")) newErrors.description = err
+          else if (err.includes("Date")) newErrors.date = err
+          else if (err.includes("Time")) newErrors.time = err
+          else if (err.includes("Location")) newErrors.location = err
+          else if (err.includes("Category")) newErrors.category = err
+          else if (err.includes("Priority")) newErrors.priority = err
+          else if (err.includes("attendees")) newErrors.maxAttendees = err
+          else newErrors.general = err // Catch-all for other errors
+        })
         setErrors(newErrors)
         setLoading(false)
         return
       }
 
-      const eventData = { title, description, date, time, location, category, priority, maxAttendees }
-
       if (event) {
-        await updateEvent(event.id, eventData)
+        const updatedEvent = EventModel.update(event, eventData)
+        EventDatabase.update(event.id, updatedEvent)
       } else {
-        await createEvent(eventData)
+        const newEvent = EventModel.create(eventData)
+        EventDatabase.create(newEvent)
       }
 
       onSuccess()
@@ -140,7 +140,7 @@ export default function EventForm({ event, onClose, onSuccess }: EventFormProps)
           </div>
 
           <div style={{ padding: "1.5rem" }}>
-            <form action={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+            <form action={handleSubmit} className="space-y-6">
               {errors.general && (
                 <div
                   style={{
