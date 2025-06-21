@@ -1,23 +1,13 @@
-"use client"
+import { redirect } from "next/navigation"
+import { getSession } from "@/lib/auth"
+import EventDashboard from "@/components/EventDashboard"
 
-import { AuthProvider, useAuth } from "@/lib/auth"
-import LoginView from "@/components/views/LoginView"
-import EventController from "@/components/controllers/EventController"
+export default async function HomePage() {
+  const session = await getSession()
 
-function AppContent() {
-  const { isAuthenticated } = useAuth()
-
-  if (!isAuthenticated) {
-    return <LoginView />
+  if (!session) {
+    redirect("/login")
   }
 
-  return <EventController />
-}
-
-export default function Home() {
-  return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
-  )
+  return <EventDashboard />
 }

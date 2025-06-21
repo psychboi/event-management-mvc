@@ -1,76 +1,58 @@
-"use client"
+import { cookies } from "next/headers"
+import { redirect } from "next/navigation"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+const SESSION_COOKIE = "event_manager_session"
 
-interface AuthContextType {
-  isAuthenticated: boolean
-  username: string | null
-  login: (username: string, password: string) => Promise<boolean>
-  logout: () => void
+const DEMO_USERS = [
+  { username: "admin", password: "password" },
+  { username: "user", password: "demo123" },
+]
+
+export interface Session {
+  username: string
+  loginTime: string
 }
 
-const AuthContext = createContext<AuthContextType | null>(null)
+export async function authenticate(username: string, password: string): Promise<boolean> {
+  await new Promise((resolve) => setTimeout(resolve, 500))
+  return DEMO_USERS.some((user) => user.username === username && user.password === password)
+}
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [username, setUsername] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const storedAuth = localStorage.getItem("auth")
-      if (storedAuth) {
-        try {
-          const parsed = JSON.parse(storedAuth)
-          setIsAuthenticated(true)
-          setUsername(parsed.username)
-        } catch (error) {
-          localStorage.removeItem("auth")
-        }
-      }
-    }
-  }, [])
-
-  const login = async (inputUsername: string, password: string): Promise<boolean> => {
-    const validCredentials = [
-      { username: "admin", password: "admin123" },
-      { username: "user", password: "user123" },
-    ]
-
-    const user = validCredentials.find((cred) => cred.username === inputUsername && cred.password === password)
-
-    if (user) {
-      setIsAuthenticated(true)
-      setUsername(inputUsername)
-      if (typeof window !== "undefined") {
-        localStorage.setItem("auth", JSON.stringify({ username: inputUsername }))
-      }
-      return true
-    }
-    return false
-  }
-
-  const logout = () => {
-    setIsAuthenticated(false)
-    setUsername(null)
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("auth")
-    }
-  }
-
-  const value: AuthContextType = {
-    isAuthenticated,
+export async function createSession(username: string): Promise<void> {
+  const session: Session = {
     username,
-    login,
-    logout,
+    loginTime: new Date().toISOString(),
   }
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  const cookieStore = await cookies()
+  cookieStore.set(SESSION_COOKIE, JSON.stringify(session), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24,
+  })
 }
 
-export function useAuth(): AuthContextType {
-  const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider")
+export async function getSession(): Promise<Session | null> {
+  try {
+    const cookieStore = await cookies()
+    const sessionCookie = cookieStore.get(SESSION_COOKIE)
+
+    if (!sessionCookie) return null
+
+    return JSON.parse(sessionCookie.value)
+  } catch (error) {
+    console.error("Error getting session:", error)
+    return null
   }
-  return context
+}
+
+export async function requireAuth(): Promise<Session> {
+  const session = await getSession()
+
+  if (!session) {
+    redirect("/login")
+  }
+
+  return session
 }

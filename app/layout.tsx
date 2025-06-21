@@ -6,8 +6,8 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Event Management System",
-  description: "A modern event management application built with MVC architecture",
+  title: "Event Manager - Community Event Management System",
+  description: "A comprehensive event management system built with MVC architecture",
     generator: 'v0.dev'
 }
 
